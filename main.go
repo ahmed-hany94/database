@@ -1,6 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"log"
+)
+
+type Database struct {
+	statement []Statement
+}
+
+func (d *Database) execute(statement *Statement) {}
 
 func main() {
 	sql := "CREATE TABLE users (id INT, name VARCHAR(50));"
@@ -12,4 +20,14 @@ func main() {
 			tokenTypeName(tok.Type),
 			tok.Position)
 	}
+
+	parser := NewParser(tokens)
+	statement, err := parser.parse()
+	if err != nil {
+		log.Fatalf("Parse error: %v\n", err)
+		return
+	}
+
+	database := &Database{}
+	database.execute(statement)
 }
