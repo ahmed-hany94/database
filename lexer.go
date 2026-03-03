@@ -6,28 +6,28 @@ import (
 
 // Token types
 const (
-	CREATE_TOK = iota
-	TABLE_TOK
-	INSERT_TOK
-	INTO_TOK
-	VALUES_TOK
-	IDENTIFIER
-	NUMBER
-	STRING_LITERAL
-	LEFT_PAREN
-	RIGHT_PAREN
-	COMMA
-	SEMICOLON
-	UNKNOWN
-	EOF
+	CreateTok = iota
+	TableTok
+	InsertTok
+	IntoTok
+	ValuesTok
+	Identifier
+	Number
+	StringLiteral
+	LeftParen
+	RightParen
+	Comma
+	Semicolon
+	Unknown
+	Eof
 )
 
 // Lexer states
 const (
-	STATE_START = iota
-	STATE_IN_IDENTIFIER
-	STATE_IN_NUMBER
-	STATE_IN_STRING
+	stateStart = iota
+	stateInIdentifier
+	stateInNumber
+	stateInString
 )
 
 type Token struct {
@@ -36,13 +36,13 @@ type Token struct {
 	Position int
 }
 
-// tokenize converts a SQL command into tokens
+// tokenize converts a SQL Command into tokens
 func tokenize(cmd string) []Token {
 	tokens := make([]Token, 0, 32)
 	var buf strings.Builder
 	buf.Grow(32)
 
-	state := STATE_START
+	state := stateStart
 	start := 0
 	runes := []rune(cmd)
 
@@ -50,33 +50,33 @@ func tokenize(cmd string) []Token {
 		c := runes[i]
 
 		switch state {
-		case STATE_START:
+		case stateStart:
 			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' {
-				state = STATE_IN_IDENTIFIER
+				state = stateInIdentifier
 				start = i
 				buf.WriteRune(c)
 			} else if c >= '0' && c <= '9' {
-				state = STATE_IN_NUMBER
+				state = stateInNumber
 				start = i
 				buf.WriteRune(c)
 			} else if c == '\'' || c == '"' {
-				state = STATE_IN_STRING
+				state = stateInString
 				start = i
 			} else if c == '(' {
-				tokens = append(tokens, Token{"(", LEFT_PAREN, i})
+				tokens = append(tokens, Token{"(", LeftParen, i})
 			} else if c == ')' {
-				tokens = append(tokens, Token{")", RIGHT_PAREN, i})
+				tokens = append(tokens, Token{")", RightParen, i})
 			} else if c == ',' {
-				tokens = append(tokens, Token{",", COMMA, i})
+				tokens = append(tokens, Token{",", Comma, i})
 			} else if c == ';' {
-				tokens = append(tokens, Token{";", SEMICOLON, i})
+				tokens = append(tokens, Token{";", Semicolon, i})
 			} else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 				// Skip whitespace
 			} else {
-				tokens = append(tokens, Token{string(c), UNKNOWN, i})
+				tokens = append(tokens, Token{string(c), Unknown, i})
 			}
 
-		case STATE_IN_IDENTIFIER:
+		case stateInIdentifier:
 			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 				(c >= '0' && c <= '9') || c == '_' {
 				buf.WriteRune(c)
@@ -85,25 +85,25 @@ func tokenize(cmd string) []Token {
 				tokType := keywordOrIdentifier(content)
 				tokens = append(tokens, Token{content, tokType, start})
 				buf.Reset()
-				state = STATE_START
+				state = stateStart
 				i--
 			}
 
-		case STATE_IN_NUMBER:
+		case stateInNumber:
 			if c >= '0' && c <= '9' {
 				buf.WriteRune(c)
 			} else {
-				tokens = append(tokens, Token{buf.String(), NUMBER, start})
+				tokens = append(tokens, Token{buf.String(), Number, start})
 				buf.Reset()
-				state = STATE_START
+				state = stateStart
 				i--
 			}
 
-		case STATE_IN_STRING:
+		case stateInString:
 			if c == '\'' || c == '"' {
-				tokens = append(tokens, Token{buf.String(), STRING_LITERAL, start})
+				tokens = append(tokens, Token{buf.String(), StringLiteral, start})
 				buf.Reset()
-				state = STATE_START
+				state = stateStart
 			} else {
 				buf.WriteRune(c)
 			}
@@ -114,68 +114,68 @@ func tokenize(cmd string) []Token {
 	if buf.Len() > 0 {
 		content := buf.String()
 		switch state {
-		case STATE_IN_IDENTIFIER:
+		case stateInIdentifier:
 			tokens = append(tokens, Token{content, keywordOrIdentifier(content), start})
-		case STATE_IN_NUMBER:
-			tokens = append(tokens, Token{content, NUMBER, start})
-		case STATE_IN_STRING:
-			tokens = append(tokens, Token{content, STRING_LITERAL, start})
+		case stateInNumber:
+			tokens = append(tokens, Token{content, Number, start})
+		case stateInString:
+			tokens = append(tokens, Token{content, StringLiteral, start})
 		}
 	}
 
 	return tokens
 }
 
-// keywordOrIdentifier returns the token type for a keyword, or IDENTIFIER
+// keywordOrIdentifier returns the token type for a keyword, or Identifier
 func keywordOrIdentifier(word string) int {
 	switch strings.ToUpper(word) {
 	case "CREATE":
-		return CREATE_TOK
+		return CreateTok
 	case "TABLE":
-		return TABLE_TOK
+		return TableTok
 	case "INSERT":
-		return INSERT_TOK
+		return InsertTok
 	case "INTO":
-		return INTO_TOK
+		return IntoTok
 	case "VALUES":
-		return VALUES_TOK
+		return ValuesTok
 	default:
-		return IDENTIFIER
+		return Identifier
 	}
 }
 
 // tokenTypeName returns a human-readable name for a token type
 func tokenTypeName(t int) string {
 	switch t {
-	case CREATE_TOK:
+	case CreateTok:
 		return "CREATE"
-	case TABLE_TOK:
+	case TableTok:
 		return "TABLE"
-	case INSERT_TOK:
+	case InsertTok:
 		return "INSERT"
-	case INTO_TOK:
+	case IntoTok:
 		return "INTO"
-	case VALUES_TOK:
+	case ValuesTok:
 		return "VALUES"
-	case IDENTIFIER:
-		return "IDENTIFIER"
-	case NUMBER:
-		return "NUMBER"
-	case STRING_LITERAL:
+	case Identifier:
+		return "Identifier"
+	case Number:
+		return "Number"
+	case StringLiteral:
 		return "STRING"
-	case LEFT_PAREN:
+	case LeftParen:
 		return "("
-	case RIGHT_PAREN:
+	case RightParen:
 		return ")"
-	case COMMA:
+	case Comma:
 		return ","
-	case SEMICOLON:
+	case Semicolon:
 		return ";"
-	case UNKNOWN:
-		return "UNKNOWN"
-	case EOF:
-		return "EOF"
+	case Unknown:
+		return "Unknown"
+	case Eof:
+		return "Eof"
 	default:
-		return "UNKNOWN"
+		return "Unknown"
 	}
 }
