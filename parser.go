@@ -35,13 +35,16 @@ const (
 	UNDEF_STMNT = iota
 	CREATE_STMNT
 	INSERT_STMNT
+	SELECT_STMNT
 )
 
 type Statement struct {
-	TableName string
-	Type      int
-	Columns   []Column
-	Rows      [][]Value
+	TableName       string
+	Type            int
+	Columns         []Column
+	Rows            [][]Value
+	SelectAll       bool
+	SelectedColumns []string
 }
 
 func NewStatement() Statement {
@@ -97,6 +100,8 @@ func (p *Parser) parse() (*Statement, error) {
 		return p.parseCreateTable()
 	case InsertTok:
 		return p.parseInsertStatement()
+	case SelectTok:
+		return p.parseSelectStatement()
 	default:
 		return nil, fmt.Errorf("Unexpected token at start: '%s'", firstTok.Content)
 	}
@@ -260,6 +265,43 @@ func (p *Parser) parseInsertStatement() (*Statement, error) {
 
 	statement.Rows = append(statement.Rows, row)
 	statement.Type = INSERT_STMNT
+
+	return &statement, nil
+}
+
+func (p *Parser) parseSelectStatement() (*Statement, error) {
+	statement := NewStatement()
+
+	if _, err := p.expect(SelectTok); err != nil {
+		return nil, err
+	}
+
+	if p.peek().Type == StarSelector {
+		p.advance()
+		statement.SelectAll = true
+	} else {
+		for p.peek().Type != FromTok {
+			col, err := p.expect(Identifier)
+			if err != nil {
+				return nil, err
+			}
+			statement.SelectedColumns = append(statement.SelectedColumns, col.Content)
+			if p.peek().Type == Comma {
+				p.advance()
+			}
+		}
+	}
+
+	if _, err := p.expect(FromTok); err != nil {
+		return nil, err
+	}
+
+	tableNameToken, err := p.expect(Identifier)
+	if err != nil {
+		return nil, err
+	}
+	statement.TableName = tableNameToken.Content
+	statement.Type = SELECT_STMNT
 
 	return &statement, nil
 }

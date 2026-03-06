@@ -20,32 +20,60 @@ func NewDatabase() Database {
 	}
 }
 
-func (d *Database) execute(statement *Statement) error {
+func (d *Database) execute(statement *Statement) ([][]Value, error) {
 	tableName := statement.TableName
 	switch statement.Type {
 	case CREATE_STMNT:
 		schema := make([]Column, len(statement.Columns))
 		copy(schema, statement.Columns)
 		d.tables[tableName] = Table{Schema: schema, Rows: [][]Value{}}
+		return nil, nil
 
 	case INSERT_STMNT:
 		table, ok := d.tables[tableName]
 		if !ok {
-			return fmt.Errorf("table '%s' does not exist", tableName)
+			return nil, fmt.Errorf("table '%s' does not exist", tableName)
 		}
 		for _, row := range statement.Rows {
 			table.Rows = append(table.Rows, row)
 		}
 		d.tables[tableName] = table
+		return nil, nil
+
+	case SELECT_STMNT:
+		table, ok := d.tables[tableName]
+		if !ok {
+			return nil, fmt.Errorf("table '%s' does not exist", tableName)
+		}
+
+		if statement.SelectAll {
+			return table.Rows, nil
+		}
+
+		var result [][]Value
+		for _, row := range table.Rows {
+			var filteredRow []Value
+			for _, val := range row {
+				for _, colName := range statement.SelectedColumns {
+					if val.ColumnName == colName {
+						filteredRow = append(filteredRow, val)
+					}
+				}
+			}
+			result = append(result, filteredRow)
+		}
+		return result, nil
 	}
-	return nil
+
+	return nil, nil
 }
 
 /**
 * Journey
 *   Basic
-*     INSERT Statement
-*     SELECT Statement
+*     [X] CREATE Statement
+*     [X] INSERT Statement
+*     [X] SELECT Statement
 *     Row Storage
 *     Type Validation
 *     Basic Error Handling
@@ -74,6 +102,7 @@ func main() {
 	sql := []string{
 		"CREATE TABLE users (id INT, name VARCHAR(50));",
 		"INSERT INTO users (id, name) VALUES (1, 'ahmed');",
+		"SELECT name FROM users;",
 	}
 
 	database := NewDatabase()
@@ -95,27 +124,22 @@ func main() {
 			return
 		}
 
-		if err := database.execute(statement); err != nil {
+		rows, err := database.execute(statement)
+		if err != nil {
 			log.Fatalf("Execute error: %v\n", err)
 			return
 		}
 
-		log.Println("============================================")
-	}
-
-	// verify
-	for tableName, table := range database.tables {
-		log.Printf("Table: %s\n", tableName)
-		for _, col := range table.Schema {
-			log.Printf("  Column: %-15s Type: %d  FixedSize: %d  MaxSize: %d  Length: %d\n",
-				col.Name, col.Type, col.FixedSize, col.MaxSize, col.Length)
-		}
-		for i, row := range table.Rows {
-			log.Printf("  Row %d:\n", i)
-			for _, val := range row {
-				log.Printf("    %-15s = %s\n", val.ColumnName, val.Raw)
+		if rows != nil {
+			log.Println("Results:")
+			for i, row := range rows {
+				log.Printf("  Row %d:\n", i)
+				for _, val := range row {
+					log.Printf("    %-15s = %s\n", val.ColumnName, val.Raw)
+				}
 			}
 		}
-	}
 
+		log.Println("============================================")
+	}
 }

@@ -11,6 +11,9 @@ const (
 	InsertTok
 	IntoTok
 	ValuesTok
+	SelectTok
+	StarSelector
+	FromTok
 	Identifier
 	Number
 	StringLiteral
@@ -70,6 +73,8 @@ func tokenize(cmd string) []Token {
 				tokens = append(tokens, Token{",", Comma, i})
 			} else if c == ';' {
 				tokens = append(tokens, Token{";", Semicolon, i})
+			} else if c == '*' {
+				tokens = append(tokens, Token{"*", StarSelector, i})
 			} else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 				// Skip whitespace
 			} else {
@@ -139,6 +144,12 @@ func keywordOrIdentifier(word string) int {
 		return IntoTok
 	case "VALUES":
 		return ValuesTok
+	case "SELECT":
+		return SelectTok
+	case "*":
+		return StarSelector
+	case "FROM":
+		return FromTok
 	default:
 		return Identifier
 	}
@@ -157,6 +168,12 @@ func tokenTypeName(t int) string {
 		return "INTO"
 	case ValuesTok:
 		return "VALUES"
+	case SelectTok:
+		return "SELECT"
+	case StarSelector:
+		return "*"
+	case FromTok:
+		return "FROM"
 	case Identifier:
 		return "Identifier"
 	case Number:
