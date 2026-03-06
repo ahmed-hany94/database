@@ -101,8 +101,8 @@ func (d *Database) execute(statement *Statement) ([][]Value, error) {
 func main() {
 	sql := []string{
 		"CREATE TABLE users (id INT, name VARCHAR(50));",
-		"INSERT INTO users (id, name) VALUES (1, 'ahmed');",
-		"SELECT name FROM users;",
+		"INSERT INTO users (id, name) VALUES (1, 'ahmed'), (2, 'amr');",
+		"SELECT * FROM users;",
 	}
 
 	database := NewDatabase()

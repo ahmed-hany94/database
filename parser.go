@@ -231,39 +231,46 @@ func (p *Parser) parseInsertStatement() (*Statement, error) {
 		return nil, err
 	}
 
-	if _, err = p.expect(LeftParen); err != nil {
-		return nil, err
-	}
-
-	var row []Value
-	i := 0
-	for p.peek().Type != RightParen {
-		if i >= len(colNames) {
-			return nil, fmt.Errorf("more values than columns provided")
+	for {
+		if _, err = p.expect(LeftParen); err != nil {
+			return nil, err
 		}
 
-		tok := p.advance()
-		row = append(row, Value{
-			ColumnName: colNames[i],
-			Raw:        tok.Content,
-			TokenType:  tok.Type,
-		})
-		i++
+		var row []Value
+		i := 0
+		for p.peek().Type != RightParen {
+			if i >= len(colNames) {
+				return nil, fmt.Errorf("more values than columns provided")
+			}
 
-		if p.peek().Type == Comma {
-			p.advance()
+			tok := p.advance()
+			row = append(row, Value{
+				ColumnName: colNames[i],
+				Raw:        tok.Content,
+				TokenType:  tok.Type,
+			})
+			i++
+
+			if p.peek().Type == Comma {
+				p.advance()
+			}
 		}
-	}
 
-	if len(row) < len(colNames) {
-		return nil, fmt.Errorf("fewer values than columns provided")
-	}
+		if len(row) < len(colNames) {
+			return nil, fmt.Errorf("fewer values than columns provided")
+		}
 
-	if _, err = p.expect(RightParen); err != nil {
-		return nil, err
-	}
+		if _, err = p.expect(RightParen); err != nil {
+			return nil, err
+		}
 
-	statement.Rows = append(statement.Rows, row)
+		statement.Rows = append(statement.Rows, row)
+
+		if p.peek().Type != Comma {
+			break
+		}
+		p.advance()
+	}
 	statement.Type = INSERT_STMNT
 
 	return &statement, nil
