@@ -7,52 +7,55 @@ import (
 
 // Column types
 const (
-	INT_TYPE = iota
-	FLOAT_TYPE
-	BOOL_TYPE
-	TEMPORAL_TYPE
-	STRING_TYPE
-	BINARY_TYPE
+	IntType = iota
+	FloatType
+	BoolType
+	TemporalType
+	StringType
+	BinaryType
 )
 
 type Column struct {
-	Name        string
+	NeedsLength bool
 	Length      int
 	FixedSize   int
 	MaxSize     int
-	NeedsLength bool
 	Type        int
+	Name        string
 }
 
 type Value struct {
+	TokenType  int
 	ColumnName string
 	Raw        string
-	TokenType  int
+	Typed      any
 }
 
 // Token types
 const (
-	UNDEF_STMNT = iota
-	CREATE_STMNT
-	INSERT_STMNT
-	SELECT_STMNT
+	UndefStmnt = iota
+	CreateStmnt
+	InsertStmnt
+	SelectStmnt
 )
 
 type Statement struct {
-	TableName       string
+	SelectAll       bool
 	Type            int
+	TableName       string
+	SelectedColumns []string
 	Columns         []Column
 	Rows            [][]Value
-	SelectAll       bool
-	SelectedColumns []string
 }
 
 func NewStatement() Statement {
 	return Statement{
-		TableName: "",
-		Type:      UNDEF_STMNT,
-		Columns:   []Column{},
-		Rows:      [][]Value{},
+		TableName:       "",
+		Type:            UndefStmnt,
+		Columns:         []Column{},
+		Rows:            [][]Value{},
+		SelectAll:       false,
+		SelectedColumns: []string{},
 	}
 }
 
@@ -70,7 +73,7 @@ func (p *Parser) peek() Token {
 		return p.tokens[p.current]
 	}
 
-	return Token{"", Eof, -1}
+	return Token{Eof, -1, ""}
 }
 
 func (p *Parser) advance() Token {
@@ -126,6 +129,7 @@ func (p *Parser) parseCreateTable() (*Statement, error) {
 	statement.TableName = tableNameToken.Content
 
 	if p.peek().Type == Semicolon {
+		statement.Type = CreateStmnt
 		return &statement, nil
 	}
 
@@ -183,7 +187,7 @@ func (p *Parser) parseCreateTable() (*Statement, error) {
 		return nil, err
 	}
 
-	statement.Type = CREATE_STMNT
+	statement.Type = CreateStmnt
 	return &statement, nil
 }
 
@@ -244,6 +248,7 @@ func (p *Parser) parseInsertStatement() (*Statement, error) {
 			}
 
 			tok := p.advance()
+
 			row = append(row, Value{
 				ColumnName: colNames[i],
 				Raw:        tok.Content,
@@ -271,7 +276,7 @@ func (p *Parser) parseInsertStatement() (*Statement, error) {
 		}
 		p.advance()
 	}
-	statement.Type = INSERT_STMNT
+	statement.Type = InsertStmnt
 
 	return &statement, nil
 }
@@ -308,36 +313,36 @@ func (p *Parser) parseSelectStatement() (*Statement, error) {
 		return nil, err
 	}
 	statement.TableName = tableNameToken.Content
-	statement.Type = SELECT_STMNT
+	statement.Type = SelectStmnt
 
 	return &statement, nil
 }
 
 var TypeMap = map[string]Column{
-	"TINYINT":    {Name: "TINYINT", Type: INT_TYPE, FixedSize: 1, MaxSize: 1, NeedsLength: false},
-	"SMALLINT":   {Name: "SMALLINT", Type: INT_TYPE, FixedSize: 2, MaxSize: 2, NeedsLength: false},
-	"MEDIUMINT":  {Name: "MEDIUMINT", Type: INT_TYPE, FixedSize: 3, MaxSize: 3, NeedsLength: false},
-	"INT":        {Name: "INT", Type: INT_TYPE, FixedSize: 4, MaxSize: 4, NeedsLength: false},
-	"INTEGER":    {Name: "INTEGER", Type: INT_TYPE, FixedSize: 4, MaxSize: 4, NeedsLength: false},
-	"BIGINT":     {Name: "BIGINT", Type: INT_TYPE, FixedSize: 8, MaxSize: 8, NeedsLength: false},
-	"FLOAT":      {Name: "FLOAT", Type: FLOAT_TYPE, FixedSize: 4, MaxSize: 4, NeedsLength: false},
-	"DOUBLE":     {Name: "DOUBLE", Type: FLOAT_TYPE, FixedSize: 8, MaxSize: 8, NeedsLength: false},
-	"REAL":       {Name: "REAL", Type: FLOAT_TYPE, FixedSize: 8, MaxSize: 8, NeedsLength: false},
-	"BOOL":       {Name: "BOOL", Type: BOOL_TYPE, FixedSize: 1, MaxSize: 1, NeedsLength: false},
-	"BOOLEAN":    {Name: "BOOLEAN", Type: BOOL_TYPE, FixedSize: 1, MaxSize: 1, NeedsLength: false},
-	"DATE":       {Name: "DATE", Type: TEMPORAL_TYPE, FixedSize: 3, MaxSize: 3, NeedsLength: false},
-	"TIME":       {Name: "TIME", Type: TEMPORAL_TYPE, FixedSize: 3, MaxSize: 3, NeedsLength: false},
-	"DATETIME":   {Name: "DATETIME", Type: TEMPORAL_TYPE, FixedSize: 8, MaxSize: 8, NeedsLength: false},
-	"TIMESTAMP":  {Name: "TIMESTAMP", Type: TEMPORAL_TYPE, FixedSize: 4, MaxSize: 4, NeedsLength: false},
-	"YEAR":       {Name: "YEAR", Type: TEMPORAL_TYPE, FixedSize: 1, MaxSize: 1, NeedsLength: false},
-	"CHAR":       {Name: "CHAR", Type: STRING_TYPE, FixedSize: 0, MaxSize: 255, NeedsLength: true},
-	"VARCHAR":    {Name: "VARCHAR", Type: STRING_TYPE, FixedSize: 0, MaxSize: 65535, NeedsLength: true},
-	"BINARY":     {Name: "BINARY", Type: BINARY_TYPE, FixedSize: 0, MaxSize: 255, NeedsLength: true},
-	"VARBINARY":  {Name: "VARBINARY", Type: BINARY_TYPE, FixedSize: 0, MaxSize: 65535, NeedsLength: true},
-	"TEXT":       {Name: "TEXT", Type: STRING_TYPE, FixedSize: 0, MaxSize: 65535, NeedsLength: false},
-	"MEDIUMTEXT": {Name: "MEDIUMTEXT", Type: STRING_TYPE, FixedSize: 0, MaxSize: 16777215, NeedsLength: false},
-	"LONGTEXT":   {Name: "LONGTEXT", Type: STRING_TYPE, FixedSize: 0, MaxSize: 4294967295, NeedsLength: false},
-	"BLOB":       {Name: "BLOB", Type: BINARY_TYPE, FixedSize: 0, MaxSize: 65535, NeedsLength: false},
-	"MEDIUMBLOB": {Name: "MEDIUMBLOB", Type: BINARY_TYPE, FixedSize: 0, MaxSize: 16777215, NeedsLength: false},
-	"LONGBLOB":   {Name: "LONGBLOB", Type: BINARY_TYPE, FixedSize: 0, MaxSize: 4294967295, NeedsLength: false},
+	"TINYINT":    {Name: "TINYINT", Type: IntType, FixedSize: 1, MaxSize: 1, NeedsLength: false},
+	"SMALLINT":   {Name: "SMALLINT", Type: IntType, FixedSize: 2, MaxSize: 2, NeedsLength: false},
+	"MEDIUMINT":  {Name: "MEDIUMINT", Type: IntType, FixedSize: 3, MaxSize: 3, NeedsLength: false},
+	"INT":        {Name: "INT", Type: IntType, FixedSize: 4, MaxSize: 4, NeedsLength: false},
+	"INTEGER":    {Name: "INTEGER", Type: IntType, FixedSize: 4, MaxSize: 4, NeedsLength: false},
+	"BIGINT":     {Name: "BIGINT", Type: IntType, FixedSize: 8, MaxSize: 8, NeedsLength: false},
+	"FLOAT":      {Name: "FLOAT", Type: FloatType, FixedSize: 4, MaxSize: 4, NeedsLength: false},
+	"DOUBLE":     {Name: "DOUBLE", Type: FloatType, FixedSize: 8, MaxSize: 8, NeedsLength: false},
+	"REAL":       {Name: "REAL", Type: FloatType, FixedSize: 8, MaxSize: 8, NeedsLength: false},
+	"BOOL":       {Name: "BOOL", Type: BoolType, FixedSize: 1, MaxSize: 1, NeedsLength: false},
+	"BOOLEAN":    {Name: "BOOLEAN", Type: BoolType, FixedSize: 1, MaxSize: 1, NeedsLength: false},
+	"DATE":       {Name: "DATE", Type: TemporalType, FixedSize: 3, MaxSize: 3, NeedsLength: false},
+	"TIME":       {Name: "TIME", Type: TemporalType, FixedSize: 3, MaxSize: 3, NeedsLength: false},
+	"DATETIME":   {Name: "DATETIME", Type: TemporalType, FixedSize: 8, MaxSize: 8, NeedsLength: false},
+	"TIMESTAMP":  {Name: "TIMESTAMP", Type: TemporalType, FixedSize: 4, MaxSize: 4, NeedsLength: false},
+	"YEAR":       {Name: "YEAR", Type: TemporalType, FixedSize: 1, MaxSize: 1, NeedsLength: false},
+	"CHAR":       {Name: "CHAR", Type: StringType, FixedSize: 0, MaxSize: 255, NeedsLength: true},
+	"VARCHAR":    {Name: "VARCHAR", Type: StringType, FixedSize: 0, MaxSize: 65535, NeedsLength: true},
+	"BINARY":     {Name: "BINARY", Type: BinaryType, FixedSize: 0, MaxSize: 255, NeedsLength: true},
+	"VARBINARY":  {Name: "VARBINARY", Type: BinaryType, FixedSize: 0, MaxSize: 65535, NeedsLength: true},
+	"TEXT":       {Name: "TEXT", Type: StringType, FixedSize: 0, MaxSize: 65535, NeedsLength: false},
+	"MEDIUMTEXT": {Name: "MEDIUMTEXT", Type: StringType, FixedSize: 0, MaxSize: 16777215, NeedsLength: false},
+	"LONGTEXT":   {Name: "LONGTEXT", Type: StringType, FixedSize: 0, MaxSize: 4294967295, NeedsLength: false},
+	"BLOB":       {Name: "BLOB", Type: BinaryType, FixedSize: 0, MaxSize: 65535, NeedsLength: false},
+	"MEDIUMBLOB": {Name: "MEDIUMBLOB", Type: BinaryType, FixedSize: 0, MaxSize: 16777215, NeedsLength: false},
+	"LONGBLOB":   {Name: "LONGBLOB", Type: BinaryType, FixedSize: 0, MaxSize: 4294967295, NeedsLength: false},
 }

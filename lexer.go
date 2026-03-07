@@ -34,9 +34,9 @@ const (
 )
 
 type Token struct {
-	Content  string
 	Type     int
 	Position int
+	Content  string
 }
 
 // tokenize converts a SQL Command into tokens
@@ -66,19 +66,19 @@ func tokenize(cmd string) []Token {
 				state = stateInString
 				start = i
 			} else if c == '(' {
-				tokens = append(tokens, Token{"(", LeftParen, i})
+				tokens = append(tokens, Token{LeftParen, i, "("})
 			} else if c == ')' {
-				tokens = append(tokens, Token{")", RightParen, i})
+				tokens = append(tokens, Token{RightParen, i, ")"})
 			} else if c == ',' {
-				tokens = append(tokens, Token{",", Comma, i})
+				tokens = append(tokens, Token{Comma, i, ","})
 			} else if c == ';' {
-				tokens = append(tokens, Token{";", Semicolon, i})
+				tokens = append(tokens, Token{Semicolon, i, ";"})
 			} else if c == '*' {
-				tokens = append(tokens, Token{"*", StarSelector, i})
+				tokens = append(tokens, Token{StarSelector, i, "*"})
 			} else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 				// Skip whitespace
 			} else {
-				tokens = append(tokens, Token{string(c), Unknown, i})
+				tokens = append(tokens, Token{Unknown, i, string(c)})
 			}
 
 		case stateInIdentifier:
@@ -88,7 +88,7 @@ func tokenize(cmd string) []Token {
 			} else {
 				content := buf.String()
 				tokType := keywordOrIdentifier(content)
-				tokens = append(tokens, Token{content, tokType, start})
+				tokens = append(tokens, Token{tokType, start, content})
 				buf.Reset()
 				state = stateStart
 				i--
@@ -98,7 +98,7 @@ func tokenize(cmd string) []Token {
 			if c >= '0' && c <= '9' {
 				buf.WriteRune(c)
 			} else {
-				tokens = append(tokens, Token{buf.String(), Number, start})
+				tokens = append(tokens, Token{Number, start, buf.String()})
 				buf.Reset()
 				state = stateStart
 				i--
@@ -106,7 +106,7 @@ func tokenize(cmd string) []Token {
 
 		case stateInString:
 			if c == '\'' || c == '"' {
-				tokens = append(tokens, Token{buf.String(), StringLiteral, start})
+				tokens = append(tokens, Token{StringLiteral, start, buf.String()})
 				buf.Reset()
 				state = stateStart
 			} else {
@@ -120,11 +120,11 @@ func tokenize(cmd string) []Token {
 		content := buf.String()
 		switch state {
 		case stateInIdentifier:
-			tokens = append(tokens, Token{content, keywordOrIdentifier(content), start})
+			tokens = append(tokens, Token{keywordOrIdentifier(content), start, content})
 		case stateInNumber:
-			tokens = append(tokens, Token{content, Number, start})
+			tokens = append(tokens, Token{Number, start, content})
 		case stateInString:
-			tokens = append(tokens, Token{content, StringLiteral, start})
+			tokens = append(tokens, Token{StringLiteral, start, content})
 		}
 	}
 
@@ -146,8 +146,6 @@ func keywordOrIdentifier(word string) int {
 		return ValuesTok
 	case "SELECT":
 		return SelectTok
-	case "*":
-		return StarSelector
 	case "FROM":
 		return FromTok
 	default:
