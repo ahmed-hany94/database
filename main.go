@@ -1,72 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 )
-
-type Table struct {
-	Schema []Column
-	Rows   [][]Value
-}
-
-type Database struct {
-	tables map[string]Table
-}
-
-func NewDatabase() Database {
-	return Database{
-		tables: make(map[string]Table),
-	}
-}
-
-func (d *Database) execute(statement *Statement) ([][]Value, error) {
-	tableName := statement.TableName
-	switch statement.Type {
-	case CREATE_STMNT:
-		schema := make([]Column, len(statement.Columns))
-		copy(schema, statement.Columns)
-		d.tables[tableName] = Table{Schema: schema, Rows: [][]Value{}}
-		return nil, nil
-
-	case INSERT_STMNT:
-		table, ok := d.tables[tableName]
-		if !ok {
-			return nil, fmt.Errorf("table '%s' does not exist", tableName)
-		}
-		for _, row := range statement.Rows {
-			table.Rows = append(table.Rows, row)
-		}
-		d.tables[tableName] = table
-		return nil, nil
-
-	case SELECT_STMNT:
-		table, ok := d.tables[tableName]
-		if !ok {
-			return nil, fmt.Errorf("table '%s' does not exist", tableName)
-		}
-
-		if statement.SelectAll {
-			return table.Rows, nil
-		}
-
-		var result [][]Value
-		for _, row := range table.Rows {
-			var filteredRow []Value
-			for _, val := range row {
-				for _, colName := range statement.SelectedColumns {
-					if val.ColumnName == colName {
-						filteredRow = append(filteredRow, val)
-					}
-				}
-			}
-			result = append(result, filteredRow)
-		}
-		return result, nil
-	}
-
-	return nil, nil
-}
 
 /**
 * Journey
@@ -100,8 +36,8 @@ func (d *Database) execute(statement *Statement) ([][]Value, error) {
 
 func main() {
 	sql := []string{
-		"CREATE TABLE users (id INT, name VARCHAR(50));",
-		"INSERT INTO users (id, name) VALUES (1, 'ahmed'), (2, 'amr');",
+		"CREATE TABLE users (id INT, name VARCHAR(50), is_admin BOOL);",
+		"INSERT INTO users (id, name, is_admin) VALUES (1, 'ahmed', TRUE), (2, 'amr', FALSE);",
 		"SELECT * FROM users;",
 	}
 
@@ -135,7 +71,7 @@ func main() {
 			for i, row := range rows {
 				log.Printf("  Row %d:\n", i)
 				for _, val := range row {
-					log.Printf("    %-15s = %s\n", val.ColumnName, val.Raw)
+					log.Printf("    %-15s = %-15s (typed: %v)\n", val.ColumnName, val.Raw, val.Typed)
 				}
 			}
 		}
